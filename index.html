@@ -3,79 +3,198 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>cymylive 关注的 GitHub 项目索引</title>
+  <title>cymylive 关注的 GitHub 项目</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; padding: 40px 20px; }
     .container { max-width: 1200px; margin: 0 auto; }
     h1 { font-size: 24px; margin-bottom: 8px; color: #f0f6fc; }
     .subtitle { color: #8b949e; margin-bottom: 24px; font-size: 14px; }
-    .stats { display: flex; gap: 20px; margin-bottom: 30px; }
-    .stat { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px 24px; }
+    .top-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+    .top-bar input { flex: 1; min-width: 200px; padding: 8px 14px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; font-size: 14px; outline: none; }
+    .top-bar input:focus { border-color: #58a6ff; }
+    .top-bar select { padding: 8px 14px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; font-size: 14px; outline: none; cursor: pointer; }
+    .stats { display: flex; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 22px; }
     .stat-number { font-size: 28px; font-weight: 600; color: #58a6ff; }
     .stat-label { font-size: 12px; color: #8b949e; margin-top: 4px; }
-    table { width: 100%; border-collapse: collapse; background: #161b22; border-radius: 8px; overflow: hidden; border: 1px solid #30363d; }
+    .loading { text-align: center; color: #8b949e; padding: 60px 0; font-size: 16px; }
+    .loading .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin .8s linear infinite; margin-bottom: 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    table { width: 100%; border-collapse: collapse; background: #161b22; border-radius: 8px; overflow: hidden; border: 1px solid #30363d; display: none; }
     thead { background: #1c2128; }
-    th { padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; color: #8b949e; letter-spacing: 0.5px; border-bottom: 1px solid #30363d; }
+    th { padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; color: #8b949e; letter-spacing: 0.5px; border-bottom: 1px solid #30363d; cursor: pointer; user-select: none; white-space: nowrap; }
+    th:hover { color: #c9d1d9; }
     td { padding: 12px 16px; border-bottom: 1px solid #21262d; font-size: 14px; }
-    tr:hover { background: #1c2128; }
-    .lang-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
-    a { color: #58a6ff; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .lang { font-size: 12px; color: #8b949e; }
-    .desc { color: #8b949e; font-size: 13px; max-width: 400px; }
-    .footer { margin-top: 30px; text-align: center; color: #484f58; font-size: 12px; }
+    tr:hover { background: #1c2128; cursor: pointer; }
+    .lang-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
+    .lang-cell { display: flex; align-items: center; gap: 4px; }
+    .repo-name { color: #58a6ff; font-weight: 500; }
+    .repo-desc { color: #8b949e; font-size: 13px; max-width: 420px; line-height: 1.4; }
+    .repo-stars { color: #8b949e; font-size: 13px; white-space: nowrap; }
+    .repo-updated { color: #8b949e; font-size: 12px; white-space: nowrap; }
+    .no-result { display: none; text-align: center; color: #8b949e; padding: 60px 0; }
+    .footer { margin-top: 24px; text-align: center; color: #484f58; font-size: 12px; }
+    .footer a { color: #484f58; text-decoration: underline; }
+    .footer a:hover { color: #8b949e; }
+    @media (max-width: 768px) {
+      .hide-mobile { display: none; }
+      td, th { padding: 10px 10px; }
+      .repo-desc { max-width: 200px; }
+    }
   </style>
 </head>
 <body>
 <div class="container">
   <h1>📌 cymylive 关注的 GitHub 项目</h1>
-  <p class="subtitle">自动从 GitHub Star 同步 · 描述已汉化 · 最后一次更新: 2026-07-05</p>
-  <div class="stats">
-    <div class="stat"><div class="stat-number">28</div><div class="stat-label">项目总数</div></div>
+  <p class="subtitle" id="subtitle">正在加载数据...</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="top-bar">
+    <input type="text" id="search" placeholder="搜索项目名称或描述..." oninput="render()">
+    <select id="langFilter" onchange="render()"><option value="">全部语言</option></select>
   </div>
-  <table>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div>正在从 GitHub API 获取 Star 项目...</div>
+  </div>
+
+  <table id="table">
     <thead>
       <tr>
-        <th>#</th>
-        <th>项目名称</th>
-        <th>描述</th>
-        <th>语言</th>
-        <th>链接</th>
+        <th onclick="sortBy('name')">项目 ↑↓</th>
+        <th class="hide-mobile" onclick="sortBy('desc')">描述 ↑↓</th>
+        <th onclick="sortBy('lang')">语言 ↑↓</th>
+        <th onclick="sortBy('stars')" style="text-align:right">⭐ ↑↓</th>
+        <th class="hide-mobile" onclick="sortBy('updated')">更新 ↑↓</th>
       </tr>
     </thead>
-    <tbody>
-      <tr><td>1</td><td><a href="https://github.com/antirez/ds4">antirez/ds4</a></td><td class="desc">DeepSeek 4 Flash 和 PRO 本地推理引擎，支持 Metal、CUDA 和 ROCm</td><td class="lang"><span class="lang-dot" style="background:#555"></span>C</td><td><a href="https://github.com/antirez/ds4">→</a></td></tr>
-      <tr><td>2</td><td><a href="https://github.com/ggml-org/llama.cpp">ggml-org/llama.cpp</a></td><td class="desc">C/C++ 实现的大语言模型推理</td><td class="lang"><span class="lang-dot" style="background:#f34b7d"></span>C++</td><td><a href="https://github.com/ggml-org/llama.cpp">→</a></td></tr>
-      <tr><td>3</td><td><a href="https://github.com/lyogavin/airllm">lyogavin/airllm</a></td><td class="desc">单张 4GB GPU 运行 70B 大模型推理</td><td class="lang"><span class="lang-dot" style="background:#DA5B0F"></span>Jupyter Notebook</td><td><a href="https://github.com/lyogavin/airllm">→</a></td></tr>
-      <tr><td>4</td><td><a href="https://github.com/roboflow/supervision">roboflow/supervision</a></td><td class="desc">可复用的计算机视觉工具库</td><td class="lang"><span class="lang-dot" style="background:#3572A5"></span>Python</td><td><a href="https://github.com/roboflow/supervision">→</a></td></tr>
-      <tr><td>5</td><td><a href="https://github.com/helloianneo/ian-xiaohei-illustrations">helloianneo/ian-xiaohei-illustrations</a></td><td class="desc">中文小黑怪诞正文配图生成 Skill | 16:9 白底手绘 | Codex Skill</td><td class="lang"><span class="lang-dot" style="background:#8b949e"></span>-</td><td><a href="https://github.com/helloianneo/ian-xiaohei-illustrations">→</a></td></tr>
-      <tr><td>6</td><td><a href="https://github.com/liliMozi/junk-drawer">liliMozi/junk-drawer</a></td><td class="desc">零碎小项目合集</td><td class="lang"><span class="lang-dot" style="background:#e34c26"></span>HTML</td><td><a href="https://github.com/liliMozi/junk-drawer">→</a></td></tr>
-      <tr><td>7</td><td><a href="https://github.com/xming521/WorkAggregation">xming521/WorkAggregation</a></td><td class="desc">招聘岗位信息聚合系统，爬虫爬取、数据分析、可视化</td><td class="lang"><span class="lang-dot" style="background:#3572A5"></span>Python</td><td><a href="https://github.com/xming521/WorkAggregation">→</a></td></tr>
-      <tr><td>8</td><td><a href="https://github.com/RemotePinee/AudioVisual">RemotePinee/AudioVisual</a></td><td class="desc">仓库已停止维护</td><td class="lang"><span class="lang-dot" style="background:#8b949e"></span>-</td><td><a href="https://github.com/RemotePinee/AudioVisual">→</a></td></tr>
-      <tr><td>9</td><td><a href="https://github.com/2hacc/TVBox">2hacc/TVBox</a></td><td class="desc">TVBox 网络接口，更新速度快，接口访问速度快且稳定！</td><td class="lang"><span class="lang-dot" style="background:#f1e05a"></span>JavaScript</td><td><a href="https://github.com/2hacc/TVBox">→</a></td></tr>
-      <tr><td>10</td><td><a href="https://github.com/521xueweihan/GitHub520">521xueweihan/GitHub520</a></td><td class="desc">让你爱 GitHub，解决访问时图裂、加载慢的问题</td><td class="lang"><span class="lang-dot" style="background:#3572A5"></span>Python</td><td><a href="https://github.com/521xueweihan/GitHub520">→</a></td></tr>
-      <tr><td>11</td><td><a href="https://github.com/ErlichLiu/deepseek-vision">ErlichLiu/deepseek-vision</a></td><td class="desc">为 DeepSeek v4 补齐视觉理解、联网搜索与 Anthropic/OpenAI 兼容接口</td><td class="lang"><span class="lang-dot" style="background:#3572A5"></span>Python</td><td><a href="https://github.com/ErlichLiu/deepseek-vision">→</a></td></tr>
-      <tr><td>12</td><td><a href="https://github.com/anomalyco/opencode">anomalyco/opencode</a></td><td class="desc">开源 AI 编程代理</td><td class="lang"><span class="lang-dot" style="background:#3178c6"></span>TypeScript</td><td><a href="https://github.com/anomalyco/opencode">→</a></td></tr>
-      <tr><td>13</td><td><a href="https://github.com/yikart/AiToEarn">yikart/AiToEarn</a></td><td class="desc">用 AI 赚钱！</td><td class="lang"><span class="lang-dot" style="background:#3178c6"></span>TypeScript</td><td><a href="https://github.com/yikart/AiToEarn">→</a></td></tr>
-      <tr><td>14</td><td><a href="https://github.com/CodebuffAI/codebuff">CodebuffAI/codebuff</a></td><td class="desc">在终端中生成代码！</td><td class="lang"><span class="lang-dot" style="background:#3178c6"></span>TypeScript</td><td><a href="https://github.com/CodebuffAI/codebuff">→</a></td></tr>
-      <tr><td>15</td><td><a href="https://github.com/Quorinex/Freebuff2API">Quorinex/Freebuff2API</a></td><td class="desc">兼容 OpenAI 的 Freebuff 代理，支持动态免费代理跟踪</td><td class="lang"><span class="lang-dot" style="background:#00ADD8"></span>Go</td><td><a href="https://github.com/Quorinex/Freebuff2API">→</a></td></tr>
-      <tr><td>16</td><td><a href="https://github.com/shenjingnan/api2mcp">shenjingnan/api2mcp</a></td><td class="desc">OpenAPI to MCP - 让 AI 助手直接调用任意 API</td><td class="lang"><span class="lang-dot" style="background:#3178c6"></span>TypeScript</td><td><a href="https://github.com/shenjingnan/api2mcp">→</a></td></tr>
-      <tr><td>17</td><td><a href="https://github.com/Peiiii/nextclaw">Peiiii/nextclaw</a></td><td class="desc">NextClaw：你的全能个人助手</td><td class="lang"><span class="lang-dot" style="background:#3178c6"></span>TypeScript</td><td><a href="https://github.com/Peiiii/nextclaw">→</a></td></tr>
-      <tr><td>18</td><td><a href="https://github.com/NanmiCoder/cc-haha">NanmiCoder/cc-haha</a></td><td class="desc">Claude Code 泄露源码 - 本地可运行版本，新增跨平台桌面端</td><td class="lang"><span class="lang-dot" style="background:#3178c6"></span>TypeScript</td><td><a href="https://github.com/NanmiCoder/cc-haha">→</a></td></tr>
-      <tr><td>19</td><td><a href="https://github.com/liliMozi/openhanako">liliMozi/openhanako</a></td><td class="desc">拥有记忆、个性和自主能力的个人 AI 代理</td><td class="lang"><span class="lang-dot" style="background:#3178c6"></span>TypeScript</td><td><a href="https://github.com/liliMozi/openhanako">→</a></td></tr>
-      <tr><td>20</td><td><a href="https://github.com/Devsoul2026/Hermes-One-Click">Devsoul2026/Hermes-One-Click</a></td><td class="desc">Hermes 一键安装 Windows 桌面客户端</td><td class="lang"><span class="lang-dot" style="background:#3572A5"></span>Python</td><td><a href="https://github.com/Devsoul2026/Hermes-One-Click">→</a></td></tr>
-      <tr><td>21</td><td><a href="https://github.com/QIN2DIM/epic-awesome-gamer">QIN2DIM/epic-awesome-gamer</a></td><td class="desc">优雅领取 Epic 商店每周免费游戏</td><td class="lang"><span class="lang-dot" style="background:#3572A5"></span>Python</td><td><a href="https://github.com/QIN2DIM/epic-awesome-gamer">→</a></td></tr>
-      <tr><td>22</td><td><a href="https://github.com/EternalPain/ZJL">EternalPain/ZJL</a></td><td class="desc">ZJL 免流防跳脚本</td><td class="lang"><span class="lang-dot" style="background:#89e051"></span>Shell</td><td><a href="https://github.com/EternalPain/ZJL">→</a></td></tr>
-      <tr><td>23</td><td><a href="https://github.com/lcy0828/clnc">lcy0828/clnc</a></td><td class="desc">clnc 的自动检测重启功能</td><td class="lang"><span class="lang-dot" style="background:#89e051"></span>Shell</td><td><a href="https://github.com/lcy0828/clnc">→</a></td></tr>
-      <tr><td>24</td><td><a href="https://github.com/wuhuanyan/buy_pig_plan_python">wuhuanyan/buy_pig_plan_python</a></td><td class="desc">电话攻击、电话轰炸、电话炸弹</td><td class="lang"><span class="lang-dot" style="background:#3572A5"></span>Python</td><td><a href="https://github.com/wuhuanyan/buy_pig_plan_python">→</a></td></tr>
-      <tr><td>25</td><td><a href="https://github.com/xxcosmos/buy_pig_plan_python">xxcosmos/buy_pig_plan_python</a></td><td class="desc">buy_pig_plan 的 Python 版，电话攻击工具</td><td class="lang"><span class="lang-dot" style="background:#3572A5"></span>Python</td><td><a href="https://github.com/xxcosmos/buy_pig_plan_python">→</a></td></tr>
-      <tr><td>26</td><td><a href="https://github.com/G4rb3n/Python-Code">G4rb3n/Python-Code</a></td><td class="desc">Python 攻击脚本</td><td class="lang"><span class="lang-dot" style="background:#3572A5"></span>Python</td><td><a href="https://github.com/G4rb3n/Python-Code">→</a></td></tr>
-      <tr><td>27</td><td><a href="https://github.com/zylon-ai/private-gpt">zylon-ai/private-gpt</a></td><td class="desc">使用 GPT 与文档交互，100% 隐私安全</td><td class="lang"><span class="lang-dot" style="background:#3572A5"></span>Python</td><td><a href="https://github.com/zylon-ai/private-gpt">→</a></td></tr>
-      <tr><td>28</td><td><a href="https://github.com/fengyie007/CLNC">fengyie007/CLNC</a></td><td class="desc">CuteBi Linux 网络客户端</td><td class="lang"><span class="lang-dot" style="background:#3be133"></span>OCaml</td><td><a href="https://github.com/fengyie007/CLNC">→</a></td></tr>
-    </tbody>
+    <tbody id="tbody"></tbody>
   </table>
-  <div class="footer">自动生成 · Powered by GitHub API</div>
+
+  <div class="no-result" id="noResult">没有匹配的项目</div>
+
+  <div class="footer">
+    数据来自 <a href="https://github.com/cymylive?tab=stars">GitHub API</a> · 点击行跳转仓库 · 自动实时更新
+  </div>
 </div>
+
+<script>
+const LANG_COLORS = {
+  'C': '#555555', 'C++': '#f34b7d', 'Python': '#3572A5', 'TypeScript': '#3178c6',
+  'JavaScript': '#f1e05a', 'Go': '#00ADD8', 'Shell': '#89e051', 'HTML': '#e34c26',
+  'OCaml': '#3be133', 'Jupyter Notebook': '#DA5B0F', 'Rust': '#dea584', 'CSS': '#563d7c',
+  'Java': '#b07219', 'Ruby': '#701516', 'PHP': '#4F5D95', 'Swift': '#F05138',
+  'Kotlin': '#A97BFF', 'Dart': '#00B4AB', 'Lua': '#000080', 'Vue': '#41b883',
+};
+
+let repos = [];
+let sortField = 'stars';
+let sortDir = -1;
+
+async function load() {
+  try {
+    let all = [];
+    let page = 1;
+    while (true) {
+      const res = await fetch(`https://api.github.com/users/cymylive/starred?per_page=100&page=${page}&t=${Date.now()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.length) break;
+      all = all.concat(data);
+      page++;
+    }
+
+    repos = all.map(r => ({
+      name: r.full_name,
+      desc: r.description || '暂无描述',
+      lang: r.language || '未知',
+      stars: r.stargazers_count,
+      url: r.html_url,
+      updated: r.pushed_at || r.updated_at,
+    }));
+
+    document.getElementById('subtitle').textContent =
+      `共 ${repos.length} 个项目 · 数据来自 GitHub API · 点击行跳转仓库`;
+
+    const langSet = new Set(repos.map(r => r.lang).filter(l => l !== '未知'));
+    const sel = document.getElementById('langFilter');
+    [...langSet].sort().forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l; opt.textContent = l; sel.appendChild(opt);
+    });
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('table').style.display = '';
+    renderStats();
+    render();
+  } catch (e) {
+    document.getElementById('loading').innerHTML = `
+      <div style="color:#f85149;font-size:40px;margin-bottom:12px;">⚠</div>
+      <div>加载失败: ${e.message}</div>
+      <div style="margin-top:12px;font-size:13px;color:#8b949e;">
+        GitHub API 有频率限制，<a href="https://github.com/cymylive?tab=stars" style="color:#58a6ff;">点此直接查看</a>
+      </div>`;
+  }
+}
+
+function renderStats() {
+  const langCount = {};
+  repos.forEach(r => { langCount[r.lang] = (langCount[r.lang] || 0) + 1; });
+  const topLang = Object.entries(langCount).sort((a,b) => b[1]-a[1]).slice(0,3).map(([l]) => l).join('、');
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="stat-number">${repos.length}</div><div class="stat-label">项目总数</div></div>
+    <div class="stat"><div class="stat-number">${repos.reduce((s,r) => s + r.stars, 0).toLocaleString()}</div><div class="stat-label">总 Star</div></div>
+    <div class="stat"><div class="stat-number">${topLang}</div><div class="stat-label">主要语言</div></div>
+  `;
+}
+
+function sortBy(field) {
+  if (sortField === field) sortDir *= -1;
+  else { sortField = field; sortDir = field === 'stars' ? -1 : 1; }
+  render();
+}
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const langFilter = document.getElementById('langFilter').value;
+
+  let filtered = repos.filter(r => {
+    const matchSearch = !q || r.name.toLowerCase().includes(q) || (r.desc && r.desc.toLowerCase().includes(q));
+    const matchLang = !langFilter || r.lang === langFilter;
+    return matchSearch && matchLang;
+  });
+
+  filtered.sort((a, b) => {
+    let va, vb;
+    if (sortField === 'stars') { va = a.stars; vb = b.stars; }
+    else if (sortField === 'lang') { va = a.lang; vb = b.lang; }
+    else if (sortField === 'updated') { va = a.updated; vb = b.updated; }
+    else { va = a.name.toLowerCase(); vb = b.name.toLowerCase(); }
+    if (va < vb) return -sortDir;
+    if (va > vb) return sortDir;
+    return 0;
+  });
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = filtered.map(r => {
+    const color = LANG_COLORS[r.lang] || '#8b949e';
+    const updated = r.updated ? new Date(r.updated).toLocaleDateString('zh-CN') : '-';
+    return `<tr onclick="window.open('${r.url}','_blank')">
+      <td><div class="repo-name">${r.name}</div></td>
+      <td class="hide-mobile"><div class="repo-desc">${r.desc}</div></td>
+      <td><div class="lang-cell"><span class="lang-dot" style="background:${color}"></span>${r.lang === '未知' ? '-' : r.lang}</div></td>
+      <td style="text-align:right"><span class="repo-stars">⭐ ${r.stars.toLocaleString()}</span></td>
+      <td class="hide-mobile"><span class="repo-updated">${updated}</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('noResult').style.display = filtered.length ? 'none' : '';
+}
+
+load();
+</script>
 </body>
 </html>
